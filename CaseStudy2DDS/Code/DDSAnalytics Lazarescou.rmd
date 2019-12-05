@@ -1,0 +1,370 @@
+---
+title: "DDSAnalytics Salary and Attrition Analysis"
+author: "Laura Lazarescou"
+date: "12/4/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) 
+```
+
+# Exploratory Data Analysis (EDA)
+## Analyze variables for single values or lack of relevancy
+
+We removed the following variables from the original dataset:
+  Over18
+  StandardHours 
+  EmployeeCount 
+  EmployeeNumber
+  
+## Convert numeric classifications to factors (for R compatibility)
+
+
+```{r}
+
+
+
+#
+# R Code for DDS Project
+#
+
+library(tidyverse)
+library(GGally)
+library(fastDummies)
+library(dplyr)
+library(mlbench)
+library(caret)
+library(mlr)
+library(ggthemes)
+library(gplots)
+library(randomForest)
+library(skimr)
+library(corrplot)
+library(e1071) # Naive Bayes Classifier
+# Many thanks for Naive Bayes and Visualization code from Zulaikha Lateef on https://www.edureka.co/blog/naive-bayes-in-r/
+
+# Read data sets (3) and copy for manipulation
+
+CS <- read.csv("C:/SMU MS Data Science Files/SMU Downloads/6306 DDS/Project 2 DDSAnalytics/CaseStudy2-data.csv")
+CS2 <- CS
+
+TestNoAttrition <- read.csv("C:/SMU MS Data Science Files/SMU Downloads/6306 DDS/Project 2 DDSAnalytics/CaseStudy2CompSet No Attrition.csv")
+TestAtt <- TestNoAttrition
+
+TestNoSalary <- read.csv("C:/SMU MS Data Science Files/SMU Downloads/6306 DDS/Project 2 DDSAnalytics/CaseStudy2CompSet No Salary2.csv")
+TestSal <- TestNoSalary
+
+# Exploratory Data Analysis (EDA) 
+
+str(CS2)
+summary(CS2)
+
+# Remove variables where all the same value
+# Over18=Y, StandardHours=80, EmployeeCount, EmployeeNumber not relevant to salary or attrition
+
+CS2$Over18 <- NULL
+CS2$StandardHours <- NULL
+CS2$EmployeeCount <- NULL
+CS2$EmployeeNumber <- NULL
+
+# Check NA and missing values
+sum(is.na(CS2))
+sum(is.na(TestNoAttrition))
+sum(is.na(TestNoSalary))
+
+# No NAs in reference data sets
+
+# Convert categorical data to factors
+
+CS2$JobInvolvement <- as.factor(CS2$JobInvolvement)
+CS2$JobLevel <- as.factor(CS2$JobLevel)
+CS2$JobSatisfaction <- as.factor(CS2$JobSatisfaction)
+CS2$PerformanceRating <- as.factor(CS2$PerformanceRating)
+CS2$RelationshipSatisfaction <- as.factor(CS2$RelationshipSatisfaction)
+CS2$StockOptionLevel <- as.factor(CS2$StockOptionLevel)
+CS2$TrainingTimesLastYear <- as.factor(CS2$TrainingTimesLastYear)
+CS2$WorkLifeBalance <- as.factor(CS2$WorkLifeBalance)
+CS2$Education <- as.factor(CS2$Education)
+CS2$EnvironmentSatisfaction <- as.factor(CS2$EnvironmentSatisfaction)
+
+# Repeat all modifications for CS2 (Training set) into 2 Test datasets
+# Convert categorical data to factors
+
+TestAtt$Over18 <- NULL
+TestAtt$StandardHours <- NULL
+TestAtt$EmployeeCount <- NULL
+TestAtt$EmployeeNumber <- NULL
+
+TestSal$Over18 <- NULL
+TestSal$StandardHours <- NULL
+TestSal$EmployeeCount <- NULL
+TestSal$EmployeeNumber <- NULL
+
+TestAtt$JobInvolvement <- as.factor(TestAtt$JobInvolvement)
+TestAtt$JobLevel <- as.factor(TestAtt$JobLevel)
+TestAtt$JobSatisfaction <- as.factor(TestAtt$JobSatisfaction)
+TestAtt$PerformanceRating <- as.factor(TestAtt$PerformanceRating)
+TestAtt$RelationshipSatisfaction <- as.factor(TestAtt$RelationshipSatisfaction)
+TestAtt$StockOptionLevel <- as.factor(TestAtt$StockOptionLevel)
+TestAtt$TrainingTimesLastYear <- as.factor(TestAtt$TrainingTimesLastYear)
+TestAtt$WorkLifeBalance <- as.factor(TestAtt$WorkLifeBalance)
+TestAtt$Education <- as.factor(TestAtt$Education)
+TestAtt$EnvironmentSatisfaction <- as.factor(TestAtt$EnvironmentSatisfaction)
+
+TestSal$JobInvolvement <- as.factor(TestSal$JobInvolvement)
+TestSal$JobLevel <- as.factor(TestSal$JobLevel)
+TestSal$JobSatisfaction <- as.factor(TestSal$JobSatisfaction)
+TestSal$PerformanceRating <- as.factor(TestSal$PerformanceRating)
+TestSal$RelationshipSatisfaction <- as.factor(TestSal$RelationshipSatisfaction)
+TestSal$StockOptionLevel <- as.factor(TestSal$StockOptionLevel)
+TestSal$TrainingTimesLastYear <- as.factor(TestSal$TrainingTimesLastYear)
+TestSal$WorkLifeBalance <- as.factor(TestSal$WorkLifeBalance)
+TestSal$Education <- as.factor(TestSal$Education)
+TestSal$EnvironmentSatisfaction <- as.factor(TestSal$EnvironmentSatisfaction)
+
+# Check Data Structure
+
+str(CS2)
+summary(CS2)
+str(TestAtt)
+str(TestSal)
+```
+
+
+# Plot the Data
+## Check Adherence to MLR Assumptions: Normality, Equal Variance, Independence, Outliers and Leverage.
+
+```{r}
+plot(CS2$Attrition, CS2$MonthlyIncome)
+```
+
+### Divide Training Dataset into smaller groups before plotting
+
+####  People-Oriented Variables:  Age, Education, EducationField, Gender, MaritalStatus, RelationshipSatisfaction, TrainingTimesLastYear
+
+####  Income-oriented variables:  DailyRate, HourlyRate, JobInvolvement, JobLevel, JobSatisfaction, MonthlyIncome, MonthlyRate, OverTime, PercentSalaryHike, StockOptionLevel
+
+####  Organizational variables:  Department, JobRole, NumCompaniesWorked, PerformanceRating, TotalWorkingYears, YearsAtCompany, YearsInCurrentRole, YearsSinceLastPromotion, YearsWithCurrManager, Attrition
+
+####  Work-Life Balance variables:  Attrition,BusinessTravel, DistanceFromHome, EnvironmentSatisfaction, WorkLifeBalance
+
+```{r}
+
+Peopledf <- CS2 %>% select(c(Age, Education, EducationField, Gender, MaritalStatus, RelationshipSatisfaction, TrainingTimesLastYear))
+Peopledf %>% ggpairs()
+
+Incomedf <- CS2 %>% select(c(DailyRate, HourlyRate, JobInvolvement, JobLevel, JobSatisfaction, MonthlyIncome, 
+                             MonthlyRate, OverTime, PercentSalaryHike, StockOptionLevel))
+Incomedf %>% ggpairs()
+
+Orgdf <- CS2 %>% select(c(Department, JobRole, NumCompaniesWorked, PerformanceRating, TotalWorkingYears,
+                          YearsAtCompany, YearsInCurrentRole, YearsSinceLastPromotion, YearsWithCurrManager, Attrition))
+Orgdf %>% ggpairs()
+
+WLdf <- CS2 %>% select(c(Attrition,BusinessTravel, DistanceFromHome, EnvironmentSatisfaction, WorkLifeBalance))
+WLdf %>% ggpairs()
+
+
+# Numeric data distribution - histograms from skim
+skim(CS2)  # from library(skimr)
+```
+
+### Analyze Collinearity among numeric factors - Are any numeric relationships close to 1 or -1?
+
+```{r}
+
+correlator  <-  function(df){
+  df %>%
+    keep(is.numeric) %>%
+    tidyr::drop_na() %>%
+    cor %>%
+    corrplot("upper", addCoef.col = "white", number.digits = 2,
+             number.cex = 0.5, method="square",
+             order="hclust", title="Correlation of Numeric Variables",
+             tl.srt=45, tl.cex = 0.8)
+}
+
+correlator(CS2)
+
+# Variable selection
+# General - Are any variables closely correllated with each other?
+# Years* values have approx 70% correllation so be aware if both are in the resulting model(s)
+# 1.  Which variables are most significantly tied to Attrition? (classification)
+# 2.  Which variables will best model the relationship to MonthlyIncome?  (muliple linear regression)
+#
+
+
+# Question 1 Salary Analysis
+
+# Used caret package to run forward, backward and stepwise variable selection for linear regression
+# Tuned number of variables with tuneGrid and nvmax
+# use nvmax = 3 to accommodate Frito-Lay requirement of top 3 factors
+
+
+# Salary:  Forward regression
+# Set seed for reproducibility
+set.seed(123)
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+# Train the model
+step.modelF <- caret::train(MonthlyIncome ~., data = CS2,
+                            method = "leapForward", 
+                            tuneGrid = data.frame(nvmax = 68),
+                            trControl = train.control
+)
+step.modelF$results
+step.modelF$bestTune
+summary(step.modelF$finalModel)
+
+# Salary:  Backward Regression
+# Set seed for reproducibility
+set.seed(456)
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+
+step.modelB <- caret::train(MonthlyIncome ~., data = CS2,
+                    method = "leapBackward", 
+                    tuneGrid = data.frame(nvmax = 61),
+                    trControl = train.control
+)
+step.modelB$results
+step.modelB$bestTune
+summary(step.modelB$finalModel)
+
+# Salary:  Stepwise regression
+# Set seed for reproducibility
+set.seed(789)
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+# Train the model
+step.modelS <- caret::train(MonthlyIncome ~., data = CS2,
+                            method = "leapSeq", 
+                            tuneGrid = data.frame(nvmax = 56),
+                            trControl = train.control
+)
+step.modelS$results
+step.modelS$bestTune
+summary(step.modelS$finalModel)
+coef(step.modelS$finalModel, 56)
+
+# Salary:  Custom Model with reduced number of factors
+
+SalaryVars <- c("MonthlyIncome","Age", "Gender", "JobLevel", "JobRole", "BusinessTravel","StockOptionLevel", "TotalWorkingYears")
+SalaryCS2 <- CS2[SalaryVars]
+
+# Plot the data
+SalaryCS2 %>% ggpairs() 
+
+# Set seed for reproducibility
+set.seed(333)
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+
+train.model <- caret::train(MonthlyIncome ~ ., data=SalaryCS2, 
+                     method = "leapSeq", 
+                     tuneGrid = data.frame(nvmax = 3),
+                     trControl = train.control
+)
+train.model$results
+train.model$bestTune
+train.model$finalModel
+coef(train.model$finalModel,3)
+summary(train.model$finalModel)
+
+# Salary:  Use lm and reduced dataframe - best R^2
+```
+## Develop Linear Models for Salary Analysis
+### Custom variable selection model with lm linear regression was best performing
+
+## Run Naive Bayes classification method with two different models.
+### Reduced variables, tied to Attrition were best overall model.
+
+# Conclusion
+##  EDA is time consuming and it is difficult to see relationships with categorical variables.
+##  Salary was strongly correlated to job role, job level and a few other variables.
+##  Attrition was tied to number of companies worked, years since last promotion, travel vs. salary.
+##  Recommend deeper analysis on job role and job level as well as pay for travel time.
+##  GenderMale was 90 points higher than reference for the model.
+
+# The End.  Thank you!
+
+```{r}
+SalaryCustomLM <- lm(MonthlyIncome ~ ., data=SalaryCS2 )
+summary(SalaryCustomLM)
+
+
+
+# Question 2:  Predict Attrition (Yes or No) based on Classification models
+#
+
+# Begin Classification Work - Naive Bayes on CS2  = Full dataset minus variables that are unique to each person.
+
+# Create Train and Test datsets from CS2 master
+# split data into 70% training and 30% test data sets
+# From Unit 7 Dr. Sadler's code
+
+################ This model works but the specificity is a bit low
+set.seed(2)
+trainInd = sample(seq(1,dim(CS2)[1],1),round(.7*dim(CS2)[1]))
+CS2Train = CS2[trainInd,]
+CS2Test = CS2[-trainInd,]
+
+set.seed(2)
+trainInd = sample(seq(1,dim(CS2)[1],1),round(.7*dim(CS2)[1]))
+CS2Train = CS2[trainInd,]
+CS2Test = CS2[-trainInd,]
+
+model = naiveBayes(Attrition ~ .,data = CS2Train)
+table(predict(model,CS2Test),CS2Test$Attrition)
+CM = confusionMatrix(table(predict(model,CS2Test),CS2Test$Attrition))
+CM
+
+
+# Custom variable selection for Attrition - All performance metrics  > 60%
+
+AttritionVars <- c("Attrition","Age", "Department", "MonthlyIncome","MaritalStatus","BusinessTravel","DistanceFromHome","EnvironmentSatisfaction","JobInvolvement","JobLevel","OverTime","PerformanceRating","StockOptionLevel","TrainingTimesLastYear","WorkLifeBalance")
+
+AttritionCS2 <- CS2[AttritionVars]
+str(AttritionCS2)
+
+set.seed(297)
+trainInd = sample(seq(1,dim(AttritionCS2)[1],1),round(.7*dim(CS2)[1]))
+AttritionCS2Train = CS2[trainInd,]
+AttritionCS2Test = CS2[-trainInd,]
+
+model2 = naiveBayes(Attrition ~ .,data = AttritionCS2Train)
+table(predict(model2,AttritionCS2Test),AttritionCS2Test$Attrition)
+CM2 = confusionMatrix(table(predict(model2,AttritionCS2Test),AttritionCS2Test$Attrition))
+CM2
+
+
+##########################################################
+# Apply models to test datasets for NoAttrition and NoSalary
+# Output to .csv files and put in Github
+# File Output code provided by Malcolm Carlson, advised by his Professor
+#
+
+# Attrition Output
+
+AttModel <- naiveBayes(Attrition ~., data = AttritionCS2)
+
+AttPred <- predict(AttModel,TestAtt)
+myout=cbind.data.frame(TestAtt$ID,AttPred)
+colnames(myout) <- c("ID","Attrition")
+write.csv(myout, file ="C:/SMU MS Data Science Files/SMU Downloads/6306 DDS/Project 2 DDSAnalytics/Case2PredictionsLazarescouAttrition.csv", row.names = FALSE)
+
+# Salary output
+
+SalaryModel <- lm(MonthlyIncome ~ ., data=SalaryCS2)
+
+SalaryPred <- predict(SalaryModel,TestSal)
+myout=cbind.data.frame(TestSal$ID,SalaryPred)
+colnames(myout) <- c("ID","MonthlyIncome")
+write.csv(myout, file ="C:/SMU MS Data Science Files/SMU Downloads/6306 DDS/Project 2 DDSAnalytics/Case2PredictionsLazarescouSalary.csv", row.names = FALSE)
+
+
+
+```
+
+
